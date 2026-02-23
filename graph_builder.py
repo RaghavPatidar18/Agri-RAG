@@ -3,29 +3,18 @@ from typing import List, TypedDict, Literal
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-
 from langgraph.graph import StateGraph, START, END
-# from langgraph.checkpoint.postgres import PostgresSaver
+
 from psycopg_pool import ConnectionPool
-
 from index_docs import get_retriever
-
-# from langchain.document_loaders import (
-#     TextLoader,
-#     UnstructuredPowerPointLoader
-# )
-
+from database import DB_URI
 
 load_dotenv()
 
-DB_URI = os.getenv("DATABASE_URL", "postgresql://rag_user:rag_password@localhost:5432/rag_db")
 FAISS_INDEX_PATH = "./faiss_index"
 DOCS_FOLDER = "./documents"
 
@@ -47,44 +36,6 @@ class State(TypedDict):
     retries: int
     isuse: str
     use_reason: str
-
-# --- 0. Indexing Function for Frontend ---
-# def index_all_documents():
-#     """Reads all PDFs in DOCS_FOLDER, chunks them, and saves to a local FAISS index."""
-#     if not os.path.exists(DOCS_FOLDER):
-#         os.makedirs(DOCS_FOLDER)
-    
-#     all_docs = []
-#     for filename in os.listdir(DOCS_FOLDER):
-#         path = os.path.join(DOCS_FOLDER, filename)
-#         if filename.endswith(".pdf"):
-#             loader = PyPDFLoader(path)
-
-#         elif filename.endswith(".txt"):
-#             loader = TextLoader(path)
-
-#         elif filename.endswith(".ppt") or filename.endswith(".pptx"):
-#             loader = UnstructuredPowerPointLoader(path)
-
-#         else:
-#             continue
-
-#         all_docs.extend(loader.load())
-    
-#     if not all_docs:
-#         return 0
-
-#     chunks = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=150).split_documents(all_docs)
-#     vector_store = FAISS.from_documents(chunks, embeddings)
-#     vector_store.save_local(FAISS_INDEX_PATH)
-#     return len(chunks)
-
-# def get_retriever():
-#     """Loads the FAISS index if it exists, otherwise returns None."""
-#     if os.path.exists(FAISS_INDEX_PATH):
-#         vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-#         return vector_store.as_retriever(search_kwargs={"k": 4})
-#     return None
 
 # --- 1. Nodes & Edges (Adapted from your code) ---
 class RetrieveDecision(BaseModel):

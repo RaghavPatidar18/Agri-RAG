@@ -1,8 +1,15 @@
-import psycopg
+import psycopg # postgres driver for python
 import os
-from datetime import datetime
+from dotenv import load_dotenv
 
-DB_URI = os.getenv("DATABASE_URL", "postgresql://rag_user:rag_password@localhost:5432/rag_db")
+load_dotenv()
+
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+DB_PORT = os.getenv("DB_PORT")
+
+DB_URI = os.getenv("DATABASE_URL", f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:{DB_PORT}/{POSTGRES_DB}")
 
 def init_db():
     """Initialize custom tables for Streamlit UI thread history."""

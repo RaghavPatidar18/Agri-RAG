@@ -8,7 +8,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 import psycopg
 from database import DB_URI
 
-st.set_page_config(page_title="RAG Graph AI", layout="wide")
+st.set_page_config(page_title="Agri-RAG", layout="wide")
 
 import os
 from dotenv import load_dotenv
@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 1. Initialize DB and Graph Checkpointer
-@st.cache_resource
+@st.cache_resource # runs only once on server up
 def setup_environment():
     init_db()
     
@@ -50,7 +50,7 @@ with st.sidebar:
     st.header("⚙️ Control Panel")
     
     # Index Documents Button
-    if st.button("📥 Index Documents in ./documents", use_container_width=True):
+    if st.button("📥 Index Documents Here", use_container_width=True):
         with st.spinner("Extracting & Embedding PDFs..."):
             chunks_indexed = index_all_documents()
             if chunks_indexed > 0:
@@ -61,7 +61,7 @@ with st.sidebar:
     st.divider()
     
     # Thread Management
-    st.subheader("💬 Chat Threads")
+    st.subheader("💬 Chat History")
     if st.button("➕ New Chat", use_container_width=True):
         st.session_state.current_thread_id = str(uuid.uuid4())
         create_thread(st.session_state.current_thread_id, "New Chat")
@@ -77,7 +77,7 @@ with st.sidebar:
             st.rerun()
 
 # --- MAIN CHAT AREA ---
-st.title("My Self RAG")
+st.title("Agri-RAG")
 st.caption(f"Current Session: `{st.session_state.current_thread_id}`")
 
 # Display historical messages from Postgres
