@@ -108,7 +108,13 @@ if prompt := st.chat_input("Ask a question..."):
         "isuse": "not_useful",
         "use_reason": "",
     }
-    config = {"configurable": {"thread_id": st.session_state.current_thread_id}}
+    config = {
+        "configurable": {"thread_id": st.session_state.current_thread_id},
+        "metadata": {
+            "thread_id": st.session_state.current_thread_id
+        },
+        "run_name": "chat_turn",
+        }
 
     # Stream the Graph Response
     with st.chat_message("assistant"):

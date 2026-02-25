@@ -9,6 +9,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 
+from langsmith import traceable
+
 from psycopg_pool import ConnectionPool
 from index_docs import get_retriever
 from database import DB_URI
@@ -38,6 +40,7 @@ class State(TypedDict):
 class RetrieveDecision(BaseModel):
     should_retrieve: bool = Field(..., description="True if external documents are needed.")
 
+@traceable(name="decide_retrival")
 def decide_retrieval(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an AI routing agent for an agricultural business. 
@@ -50,9 +53,11 @@ def decide_retrieval(state: State):
     decision = llm.with_structured_output(RetrieveDecision).invoke(prompt.format_messages(question=state["question"]))
     return {"need_retrieval": decision.should_retrieve}
 
+@traceable(name="route decision")
 def route_after_decide(state: State):
     return "retrieve" if state["need_retrieval"] else "generate_direct"
 
+@traceable(name="generate with llm knowledge")
 def generate_direct(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an agricultural expert assistant. 
@@ -62,6 +67,7 @@ def generate_direct(state: State):
     ])
     return {"answer": llm.invoke(prompt.format_messages(question=state["question"])).content}
 
+@traceable(name="retrieve doc")
 def retrieve(state: State):
     retriever = get_retriever()
     if not retriever:
@@ -72,6 +78,7 @@ def retrieve(state: State):
 class RelevanceDecision(BaseModel):
     is_relevant: bool = Field(..., description="True ONLY if document directly relates to the question topic.")
 
+@traceable(name="is relevant")
 def is_relevant(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an agricultural researcher evaluating document relevance. 
@@ -89,9 +96,11 @@ def is_relevant(state: State):
             relevant_docs.append(doc)
     return {"relevant_docs": relevant_docs}
 
+@traceable(name="rout after relevance")
 def route_after_relevance(state: State):
     return "generate_from_context" if state.get("relevant_docs") else "no_answer_found"
 
+@traceable(name="generate_from_context")
 def generate_from_context(state: State):
     context = "\n\n---\n\n".join([d.page_content for d in state.get("relevant_docs", [])]).strip()
     prompt = ChatPromptTemplate.from_messages([
@@ -103,6 +112,7 @@ def generate_from_context(state: State):
     ])
     return {"answer": llm.invoke(prompt.format_messages(question=state["question"], context=context)).content, "context": context}
 
+@traceable(name="no answer found")
 def no_answer_found(state: State):
     return {"answer": "No answer found in the knowledge base.", "context": ""}
 
@@ -110,6 +120,7 @@ class IsSUPDecision(BaseModel):
     issup: Literal["fully_supported", "partially_supported", "no_support"]
     evidence: List[str] = Field(default_factory=list)
 
+@traceable(name="is supporting")
 def is_sup(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a strict fact-checker for an agricultural knowledge base. 
@@ -123,6 +134,7 @@ def is_sup(state: State):
     )
     return {"issup": decision.issup, "evidence": decision.evidence}
 
+@traceable(name="route after supporting")
 def route_after_issup(state: State):
     if state.get("issup") == "fully_supported" or state.get("retries", 0) >= 3:
         return "accept_answer"
@@ -130,6 +142,7 @@ def route_after_issup(state: State):
 
 def accept_answer(state: State): return {}
 
+@traceable(name="revise answer")
 def revise_answer(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an agricultural AI assistant correcting a previous answer that contained unsupported claims. 
@@ -143,6 +156,7 @@ class IsUSEDecision(BaseModel):
     isuse: Literal["useful", "not_useful"]
     reason: str
 
+@traceable(name="is usefull answer")
 def is_use(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are evaluating the helpfulness of an agricultural assistant's response. 
@@ -154,6 +168,7 @@ def is_use(state: State):
     decision = llm.with_structured_output(IsUSEDecision).invoke(prompt.format_messages(question=state["question"], answer=state.get("answer", "")))
     return {"isuse": decision.isuse, "use_reason": decision.reason}
 
+@traceable(name="route after usefulness check")
 def route_after_isuse(state: State):
     if state.get("isuse") == "useful": return "END"
     if state.get("rewrite_tries", 0) >= 3: return "no_answer_found"
@@ -162,6 +177,7 @@ def route_after_isuse(state: State):
 class RewriteDecision(BaseModel):
     retrieval_query: str
 
+@traceable(name="rewrite question")
 def rewrite_question(state: State):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an expert at agricultural information retrieval. The previous search query did not yield useful results. 
