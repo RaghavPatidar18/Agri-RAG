@@ -1,6 +1,6 @@
-# Agri-RAG: Self-RAG Agricultural Knowledge Assistant
+# Fresher Training RAG: Self-RAG Company Onboarding Assistant
 
-A production-grade **Self-Reflective Retrieval-Augmented Generation (Self-RAG)** chatbot built for agricultural knowledge management. The system intelligently decides whether to retrieve documents, evaluates their relevance, fact-checks its own answers against source context, and rewrites queries when results are poor — all within a stateful, multi-turn chat interface.
+A production-grade **Self-Reflective Retrieval-Augmented Generation (Self-RAG)** chatbot built for company fresher onboarding and training knowledge management. The system intelligently decides whether to retrieve documents, evaluates their relevance, fact-checks its own answers against source context, and rewrites queries when results are poor — all within a stateful, multi-turn chat interface.
 
 ---
 
@@ -112,7 +112,7 @@ If not fully supported, the answer is sent to `revise_answer`, which rewrites it
 Even a factual answer may not be **useful** to the user. A separate LLM call judges whether the answer actually addresses the question. If not useful, instead of giving up, the system escalates to query rewriting.
 
 ### 5. Iterative Query Rewriting (`rewrite_question`)
-When answers are not useful, the original question is **reformulated into an optimized vector search query** — stripping conversational filler and focusing on agricultural domain keywords. Retrieval then retries with the improved query (up to 3 attempts before falling back to "no answer found").
+When answers are not useful, the original question is **reformulated into an optimized vector search query** — stripping conversational filler and focusing on company onboarding and policy keywords. Retrieval then retries with the improved query (up to 3 attempts before falling back to "no answer found").
 
 ### 6. Stateful Multi-Turn Conversations
 LangGraph's `PostgresSaver` checkpointer persists the full graph state per thread in PostgreSQL. This enables **true conversation continuity** — the graph can resume mid-execution and the chat history survives server restarts.
@@ -183,16 +183,16 @@ POSTGRES_DB="rag_db"
 DB_PORT="5432"
 ```
 
-### 6. Add Your Documents
+### 6. Add Company Documents Only
 
-Place PDF, TXT, or PPTX files into the `./documents/` folder:
+Place only company-related PDF, TXT, or PPTX files into the `./documents/` folder (onboarding guides, HR policies, internal SOPs, product/process manuals, compliance docs):
 
 ```
 blog-agent/
 └── documents/
     ├── your_report.pdf
-    ├── farming_guide.pptx
-    └── crop_data.txt
+    ├── onboarding_guide.pptx
+    └── hr_policy_summary.txt
 ```
 
 ### 7. Launch the App
@@ -211,7 +211,7 @@ In the Streamlit sidebar, click **"Index Documents Here"**. The app will:
 - Embed chunks with `all-MiniLM-L6-v2`
 - Save to Qdrant Cloud collection `ocr_chunks`
 
-You are now ready to query your documents.
+You are now ready to query company training documents.
 
 ---
 
@@ -225,7 +225,7 @@ The following deliberate choices were made to improve over a naive RAG baseline:
 **Fix:** Added `decide_retrieval` to skip retrieval entirely for general questions, and `is_relevant` to filter retrieved chunks individually before generation. Only contextually appropriate chunks reach the LLM.
 
 ### Problem 2: Hallucination in Generated Answers
-LLMs can "fill in the gaps" with plausible-sounding but unsupported claims, especially in domain-specific topics like agricultural yields and chemical compositions.
+LLMs can "fill in the gaps" with plausible-sounding but unsupported claims, especially in domain-specific topics like internal policies, process expectations, and compliance details.
 
 **Fix:** The `is_sup` node performs explicit faithfulness checking after generation. If the answer contains unsupported claims, `revise_answer` strips them and regenerates from only the verified source text. This loop runs up to 3 times.
 
@@ -235,12 +235,12 @@ An answer can be grounded in context yet still fail to address the user's actual
 **Fix:** The `is_use` node evaluates answer utility separately from faithfulness. This decouples "is it true?" from "does it help?" — two distinct quality dimensions.
 
 ### Problem 4: Poor Query Formulation Limiting Recall
-User questions phrased conversationally ("what do they say about wheat prices?") do not vector-search well.
+User questions phrased conversationally ("what do they say about leave policy?") do not vector-search well.
 
 **Fix:** The `rewrite_question` node reformulates failed queries into dense, keyword-rich search strings optimized for the Qdrant index. This gives the retriever a second (and third) chance with a better signal.
 
 ### Problem 5: Standard Text Extraction Missing Visual Content
-PDFs in agricultural reporting often embed charts, tables, and infographics as images. Pure text-based PDF parsing would miss all of this content.
+PDFs in company training and policy often embed charts, tables, and infographics as images. Pure text-based PDF parsing would miss all of this content.
 
 **Fix:** Replaced `PyPDF2`/`pdfplumber` with a full OCR pipeline: PDFs are converted page-by-page to images via `pdf2image`, then processed by `EasyOCR`. PPTX files are similarly handled — native text is extracted from shapes, and embedded images are individually OCR'd.
 

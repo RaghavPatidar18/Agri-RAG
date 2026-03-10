@@ -43,11 +43,11 @@ class RetrieveDecision(BaseModel):
 @traceable(name="decide_retrival")
 def decide_retrieval(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an AI routing agent for an agricultural business. 
-        Determine if the user's question requires retrieving specialized documents (e.g., organic farming guidelines, localized climate data, crop yield reports, or community agribusiness initiatives). 
+        ("system", """You are an AI routing agent for fresher training in a company.
+        Determine if the user's question requires retrieving specialized company documents (e.g., onboarding guides, HR policies, product documentation, SOPs, security/compliance manuals, team processes).
         Return JSON with 'should_retrieve' (boolean). 
-        Set to True if it needs specific, localized, or proprietary database info. 
-        Set to False for general greetings or broad, universally known concepts."""),
+        Set to True if it needs specific, internal, or proprietary company information.
+        Set to False for general greetings or broad, universally known concepts that do not require company context."""),
         ("human", "Question: {question}")
     ])
     decision = llm.with_structured_output(RetrieveDecision).invoke(prompt.format_messages(question=state["question"]))
@@ -60,9 +60,9 @@ def route_after_decide(state: State):
 @traceable(name="generate with llm knowledge")
 def generate_direct(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an agricultural expert assistant. 
-        Answer the user's question using your general knowledge about farming, crops, livestock, and agribusiness. 
-        If the question requires highly localized data, specific chemical regulations, or proprietary agribusiness information that you do not possess, politely state 'I don't know' or 'I need more specific agricultural context to answer this'."""),
+        ("system", """You are a fresher training assistant for company onboarding.
+        Answer the user's question using general professional knowledge.
+        If the question requires internal company policy, proprietary process, product details, or compliance specifics that you do not have, politely say 'I don't know' or 'I need company-specific context to answer this'."""),
         ("human", "{question}")
     ])
     return {"answer": llm.invoke(prompt.format_messages(question=state["question"])).content}
@@ -82,10 +82,10 @@ class RelevanceDecision(BaseModel):
 @traceable(name="is relevant")
 def is_relevant(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an agricultural researcher evaluating document relevance. 
-        Assess if the provided document contains information directly relevant to answering the user's farming or agribusiness question. 
+        ("system", """You are evaluating company document relevance for fresher training.
+        Assess if the provided document contains information directly relevant to answering the user's onboarding or company-process question.
         Return JSON with 'is_relevant' (boolean). 
-        Set to True ONLY if the document discusses the specific crops, techniques (like organic composting), equipment, or agricultural concepts mentioned in the question. False if it is off-topic."""),
+        Set to True ONLY if the document discusses the specific policy, process, product, team workflow, role expectations, tools, or compliance topics mentioned in the question. False if it is off-topic."""),
         ("human", "Question:\n{question}\n\nDoc:\n{document}")
     ])
     relevant_docs = []
@@ -105,8 +105,8 @@ def route_after_relevance(state: State):
 def generate_from_context(state: State):
     context = "\n\n---\n\n".join([d.page_content for d in state.get("relevant_docs", [])]).strip()
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a specialized agricultural AI assistant. 
-        Answer the user's question clearly and accurately using ONLY the provided agricultural context. Focus on actionable insights for farming or agribusiness if present. 
+        ("system", """You are a specialized company training AI assistant.
+        Answer the user's question clearly and accurately using ONLY the provided company context. Focus on actionable guidance for freshers and onboarding.
         Do not use outside knowledge. If the context does not contain the answer, state that clearly. 
         Do not use conversational filler like 'Based on the context provided' or 'According to the documents'."""),
         ("human", "Question:\n{question}\n\nContext:\n{context}")
@@ -124,10 +124,10 @@ class IsSUPDecision(BaseModel):
 @traceable(name="is supporting")
 def is_sup(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a strict fact-checker for an agricultural knowledge base. 
+        ("system", """You are a strict fact-checker for a company training knowledge base.
         Verify if the generated ANSWER is strictly supported by the provided CONTEXT. 
         Return JSON with 'issup' (Literal: 'fully_supported', 'partially_supported', 'no_support') and 'evidence' (a list of direct quotes from the context that support the answer). 
-        Ensure no unverified farming advice, crop yield guarantees, or chemical recommendations are hallucinated in the ANSWER."""),
+        Ensure no unverified company policies, timelines, process steps, or compliance instructions are hallucinated in the ANSWER."""),
         ("human", "Question:\n{question}\nAnswer:\n{answer}\nContext:\n{context}")
     ])
     decision = llm.with_structured_output(IsSUPDecision).invoke(
@@ -146,9 +146,9 @@ def accept_answer(state: State): return {}
 @traceable(name="revise answer")
 def revise_answer(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an agricultural AI assistant correcting a previous answer that contained unsupported claims. 
+        ("system", """You are a company training AI assistant correcting a previous answer that contained unsupported claims.
         Rewrite the answer to the question using STRICTLY the facts present in the provided CONTEXT. 
-        Remove any hallucinated advice regarding crops, shelf-life, or farming practices. Stay perfectly grounded in the provided text."""),
+        Remove any hallucinated company policy details, role expectations, process steps, or procedural claims. Stay perfectly grounded in the provided text."""),
         ("human", "Question:\n{question}\nAnswer:\n{answer}\nCONTEXT:\n{context}")
     ])
     return {"answer": llm.invoke(prompt.format_messages(question=state["question"], answer=state.get("answer",""), context=state.get("context",""))).content, "retries": state.get("retries", 0) + 1}
@@ -160,10 +160,10 @@ class IsUSEDecision(BaseModel):
 @traceable(name="is usefull answer")
 def is_use(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are evaluating the helpfulness of an agricultural assistant's response. 
+        ("system", """You are evaluating the helpfulness of a fresher-training assistant's response.
         Decide if the ANSWER effectively and directly addresses the user's QUESTION. 
         Return JSON with 'isuse' (Literal: 'useful', 'not_useful') and 'reason' (a brief explanation). 
-        Consider it 'useful' if it provides actionable, accurate farming or business info relevant to the prompt. Consider it 'not_useful' if it evades the question or provides irrelevant info."""),
+        Consider it 'useful' if it provides actionable, accurate onboarding or company-process information relevant to the prompt. Consider it 'not_useful' if it evades the question or provides irrelevant info."""),
         ("human", "Question:\n{question}\nAnswer:\n{answer}")
     ])
     decision = llm.with_structured_output(IsUSEDecision).invoke(prompt.format_messages(question=state["question"], answer=state.get("answer", "")))
@@ -181,9 +181,9 @@ class RewriteDecision(BaseModel):
 @traceable(name="rewrite question")
 def rewrite_question(state: State):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an expert at agricultural information retrieval. The previous search query did not yield useful results. 
+        ("system", """You are an expert at company onboarding information retrieval. The previous search query did not yield useful results.
         Rewrite the original QUESTION into a highly optimized search query for a vector database. 
-        Focus on extracting key agricultural terms (e.g., 'organic compost methods', 'high-shelf-life crop processing', 'soil moisture retention'). 
+        Focus on extracting key company terms (e.g., 'employee onboarding checklist', 'leave policy probation', 'code review workflow', 'security compliance training').
         Remove conversational filler. Return JSON with 'retrieval_query' (string)."""),
         ("human", "Question:\n{question}\nPrev Query:\n{retrieval_query}")
     ])

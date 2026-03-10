@@ -9,7 +9,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 import psycopg
 from database import DB_URI
 
-st.set_page_config(page_title="Agri-RAG", layout="wide")
+st.set_page_config(page_title="Fresher Training RAG", layout="wide")
 
 import os
 from dotenv import load_dotenv
@@ -54,12 +54,12 @@ with st.sidebar:
     
     # Index Documents Button
     if st.button("📥 Index Documents Here", use_container_width=True):
-        with st.spinner("Extracting & Embedding PDFs..."):
+        with st.spinner("Extracting & Embedding company documents..."):
             chunks_indexed = index_all_documents()
             if chunks_indexed > 0:
                 st.success(f"Successfully indexed {chunks_indexed} chunks!")
             else:
-                st.warning("No PDFs found in ./documents.")
+                st.warning("No supported company documents found in ./documents.")
 
     st.divider()
     
@@ -80,7 +80,7 @@ with st.sidebar:
             st.rerun()
 
 # --- MAIN CHAT AREA ---
-st.title("Agri-RAG")
+st.title("Fresher Training RAG")
 st.caption(f"Current Session: `{st.session_state.current_thread_id}`")
 
 # Display historical messages from Postgres

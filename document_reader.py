@@ -108,5 +108,5 @@ def read_document(file_path):
         console.print(f"[bold red]An error occurred while processing {file_path}:[/] {e}")
 
 if __name__ == "__main__":
-    sample_file = "/Users/raghavpatidar/Portfolio/blog-agent/documents/CRISIL_Agri_Dashboard_September_2025-28.pdf"
+    sample_file = "/Users/raghavpatidar/Portfolio/blog-agent/documents/company_onboarding_handbook.pdf"
     read_document(sample_file)
